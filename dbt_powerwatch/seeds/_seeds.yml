@@ -1,0 +1,15 @@
+version: 2
+
+seeds:
+  - name: dim_zone
+    description: >
+      The three sub-metered circuits, loaded as a static seed (only 3 rows).
+      zone_key maps 1:1 to the Sub_metering_1/2/3 columns in the raw file.
+    config:
+      column_types:
+        zone_key: int64
+        zone_name: string
+        appliances: string
+    columns:
+      - name: zone_key
+        tests: [unique, not_null]   # key tests (1 of the ~4 we keep)

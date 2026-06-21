@@ -1,0 +1,22 @@
+name: 'powerwatch'
+version: '1.0.0'
+config-version: 2
+
+profile: 'powerwatch'
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  powerwatch:
+    staging:
+      +materialized: view          # cheap, always-fresh source cleanup
+    marts:
+      +materialized: table         # GSD: full rebuild every run, NOT incremental.
+                                    # Won't scale; doesn't need to for a PoC.
+
+seeds:
+  powerwatch:
+    +schema: marts

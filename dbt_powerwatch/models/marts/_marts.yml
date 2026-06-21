@@ -1,0 +1,30 @@
+version: 2
+
+# GSD: keep ~4 tests — unique + not_null on the keys, plus one relationships test.
+# They're one line each and a talking point. The rest are cut.
+
+models:
+  - name: dim_date
+    description: Conformed calendar dimension.
+    columns:
+      - name: date_key
+        tests: [unique, not_null]
+
+  - name: dim_time
+    description: Conformed time-of-day dimension.
+    columns:
+      - name: time_key
+        tests: [unique, not_null]
+
+  - name: fct_household_load
+    description: Whole-house load, one row per minute. The four Global_* measures.
+
+  - name: fct_zone_energy
+    description: Per-zone energy, one row per minute per zone (the unpivot).
+    columns:
+      - name: zone_key
+        tests:
+          # relationships test: every fact zone_key must exist in dim_zone
+          - relationships:
+              to: ref('dim_zone')
+              field: zone_key

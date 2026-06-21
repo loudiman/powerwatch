@@ -1,0 +1,4 @@
+zone_key,zone_name,appliances
+1,Kitchen,"Dishwasher, oven and microwave (sub_metering_1)"
+2,Laundry Room,"Washing machine, tumble-drier, refrigerator and a light (sub_metering_2)"
+3,Water Heater & AC,"Electric water-heater and air-conditioner (sub_metering_3)"

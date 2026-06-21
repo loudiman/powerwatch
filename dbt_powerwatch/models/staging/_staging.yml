@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: "{{ env_var('BQ_DATASET', 'powerwatch') }}"
+    tables:
+      - name: raw_power      # produced by ingestion/load_to_bigquery.py
+
+models:
+  - name: stg_power
+    description: >
+      Cleaned 1:1 source model. Parses Date+Time into one timestamp, derives the
+      conformed date_key / time_key, and drops the `?` missing-value rows. All
+      heavy lifting that downstream marts depend on lives here.
