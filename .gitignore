@@ -11,6 +11,7 @@ dbt_powerwatch/target/
 dbt_powerwatch/dbt_packages/
 dbt_powerwatch/logs/
 dbt_powerwatch/profiles.yml
+dbt_powerwatch/.user.yml
 
 # Python
 __pycache__/
@@ -20,3 +21,6 @@ venv/
 
 # OS / editor
 .DS_Store
+
+# Local-only working docs — kept out of the public repo (per your call)
+docs/ROADMAP.md

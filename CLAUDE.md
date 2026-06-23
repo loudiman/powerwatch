@@ -14,7 +14,7 @@ PowerWatch is a planned **ELT pipeline** that turns the UCI household-power data
 
 Format quirks that ingestion code must handle:
 - `;`-delimited, header row present.
-- Missing values are the literal `?` (whole-minute gaps, ~1.25% of rows). Parse as null, not 0.
+- Missing values: 25,979 rows (~1.25%). The first six measures are the literal `?`, **but `sub_metering_3` is empty (`''`), not `?`**. BigQuery rejects an empty value for a numeric column when a null_marker is set, so the loader lands **all columns as STRING** (no null_marker) and dbt staging `SAFE_CAST`s — turning both `?` and `''` → NULL, then one `WHERE` drops them. Don't "fix" the loader back to typed columns + null_marker; it re-breaks the load.
 - `Date` is `D/M/YYYY` **non-zero-padded** (e.g. `14/1/2007`); `Time` is `HH:MM:SS`.
 
 Columns and units:
