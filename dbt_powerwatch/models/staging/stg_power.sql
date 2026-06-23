@@ -1,6 +1,7 @@
 -- Staging: parse + clean the raw UCI rows.
--- GSD: drop the `?` missing values with a single WHERE filter. No imputation,
--- no rabbit-holing on data cleaning.
+-- raw_power is loaded all-STRING (the missing rows mix '?' and '' — BigQuery
+-- rejects an empty value for a numeric column on load). GSD: SAFE_CAST handles
+-- both, and one WHERE filter drops the ~25,979 missing rows. No imputation.
 
 with raw as (
 
@@ -14,17 +15,17 @@ parsed as (
         -- merge the non-zero-padded Date (D/M/YYYY) and Time (HH:MM:SS) into one timestamp
         parse_datetime('%d/%m/%Y %H:%M:%S', concat(reading_date, ' ', reading_time)) as reading_ts,
 
-        global_active_power    as active_power,     -- kW
-        global_reactive_power  as reactive_power,   -- kW
-        voltage,                                     -- V
-        global_intensity       as intensity,        -- A
-        sub_metering_1,                              -- Wh/min, kitchen
-        sub_metering_2,                              -- Wh/min, laundry
-        sub_metering_3                               -- Wh/min, water-heater & AC
+        safe_cast(global_active_power   as float64) as active_power,     -- kW
+        safe_cast(global_reactive_power as float64) as reactive_power,   -- kW
+        safe_cast(voltage               as float64) as voltage,          -- V
+        safe_cast(global_intensity      as float64) as intensity,        -- A
+        safe_cast(sub_metering_1        as float64) as sub_metering_1,    -- Wh/min, kitchen
+        safe_cast(sub_metering_2        as float64) as sub_metering_2,    -- Wh/min, laundry
+        safe_cast(sub_metering_3        as float64) as sub_metering_3     -- Wh/min, water-heater & AC
 
     from raw
-    -- `?` rows load as NULL via the loader's null_marker; one filter drops them.
-    where global_active_power is not null
+    -- safe_cast turns '?' and '' both into NULL; one filter drops the missing rows.
+    where safe_cast(global_active_power as float64) is not null
 
 )
 

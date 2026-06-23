@@ -19,4 +19,4 @@ models:
 
 seeds:
   powerwatch:
-    +schema: marts
+    +quote_columns: false   # dim_zone lands in the same dataset as the marts

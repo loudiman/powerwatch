@@ -2,8 +2,8 @@
 google-cloud-bigquery>=3.0
 python-dotenv>=1.0
 
-# Transform
-dbt-bigquery>=1.7
+# Transform (pinned to the stable 1.9 line — unpinned pulls a dbt-core 2.0 alpha)
+dbt-bigquery>=1.9,<1.10
 
 # AI assistant (Tier 2 stretch — only needed for ai_assistant/)
 google-cloud-aiplatform>=1.40
