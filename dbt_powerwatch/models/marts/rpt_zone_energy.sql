@@ -10,6 +10,7 @@ select
     d.month,
     d.day,
     d.day_of_week,
+    extract(dayofweek from d.full_date) as dow_num,   -- 1=Sun .. 7=Sat, for chart ordering
     d.season,
     t.hour,
     t.time_of_day,
