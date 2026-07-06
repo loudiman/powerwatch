@@ -7,3 +7,4 @@ dbt-bigquery>=1.9,<1.10
 
 # AI assistant (Tier 2 stretch — only needed for ai_assistant/)
 google-cloud-aiplatform>=1.40
+google-genai>=1.0

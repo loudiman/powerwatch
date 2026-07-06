@@ -1,6 +1,6 @@
 # PowerWatch ⚡
 
-> An end-to-end energy analytics warehouse — raw household consumption data turned into a tested, dimensional model on BigQuery with dbt, surfaced in a live Looker Studio dashboard.
+> An end-to-end energy analytics warehouse — raw household consumption data turned into a tested, dimensional model on BigQuery with dbt, surfaced in a live Looker Studio dashboard and queried in plain English via a Vertex AI assistant.
 
 ![PowerWatch ELT pipeline architecture](orca-paste-1782054457828-7a3ef237-b2c8-455c-9b32-0b51fc2d52cc.png)
 
@@ -8,7 +8,7 @@
 
 PowerWatch turns 2M+ raw household electricity-consumption readings into a clean, queryable **dimensional model**. It implements the Extract → Load → Transform (**ELT**) stages of a modern data product on Google Cloud: raw data is loaded into **BigQuery**, then transformed into a galaxy schema with [dbt](https://www.getdbt.com/).
 
-The project covers the core lifecycle: ingestion → warehousing → dimensional modeling → an interactive **[Looker Studio dashboard](https://lookerstudio.google.com/reporting/a2b135b9-dc45-4445-bb29-be4c45cda0f4)**. A Vertex AI natural-language query layer is planned — see [Roadmap](#roadmap).
+The project covers the full lifecycle: ingestion → warehousing → dimensional modeling → an interactive **[Looker Studio dashboard](https://lookerstudio.google.com/reporting/a2b135b9-dc45-4445-bb29-be4c45cda0f4)** → a **natural-language → SQL assistant** powered by Vertex AI.
 
 **Why energy data?** Electricity consumption is naturally time-series, multi-dimensional (by zone, time of day, season), and immediately relatable — an ideal canvas for dimensional modeling and OLAP-style analysis.
 
@@ -19,6 +19,7 @@ The project covers the core lifecycle: ingestion → warehousing → dimensional
 - **Wide-to-long unpivot** — the three sub-meter columns are melted into the `fct_zone_energy` fact + `dim_zone` dimension. This is the heart of the model.
 - **dbt tests** — `unique` / `not_null` on the dimension keys plus a `relationships` test from the zone fact to `dim_zone`.
 - **Interactive dashboard** — a live [Looker Studio report](https://lookerstudio.google.com/reporting/a2b135b9-dc45-4445-bb29-be4c45cda0f4) (3 charts) reading from pre-joined reporting views. See [Dashboard](#dashboard).
+- **AI query layer** — a **Vertex AI (Gemini)** assistant turns plain-English questions into SQL over the star schema and runs it. See [AI Assistant](#ai-assistant).
 
 ## Dashboard
 
@@ -32,16 +33,36 @@ The dashboard reads from two **pre-joined reporting views** (`rpt_household_load
 - **Active power over time** — the full 2006–2010 trend, with clear winter-high / summer-low seasonality.
 - **Energy by zone** — the water-heater + AC circuit dominates household energy (~13M Wh), far above laundry (~2.7M) and kitchen (~2.3M).
 
+## AI Assistant
+
+Ask the warehouse questions in plain English — a **Vertex AI** Gemini model (`gemini-2.5-flash`) generates BigQuery SQL against the star schema and runs it. The schema is pasted into the prompt (`ai_assistant/prompts/schema_prompt.md`), which keeps the model constrained to real tables and columns rather than hallucinating them.
+
+```
+$ python ai_assistant/nl_to_sql.py
+Ask PowerWatch: Which zone used the most energy overall?
+
+--- generated SQL ---
+SELECT z.zone_name
+FROM `powerwatch.fct_zone_energy` f
+JOIN `powerwatch.dim_zone` z ON f.zone_key = z.zone_key
+GROUP BY 1 ORDER BY SUM(f.energy_wh) DESC LIMIT 1
+
+--- results ---
+{'zone_name': 'Water Heater & AC'}
+```
+
+It picks the right fact, joins the conformed dimension, and aggregates correctly — e.g. *"which hour has the highest average active power?"* returns `20` (8 PM), matching the dashboard's evening peak. Constraining the model to a **known schema** is what makes NL→SQL reliable.
+
 ## Tech Stack
 
-| Layer              | Technology                                                | Status            |
-| ------------------ | --------------------------------------------------------- | ----------------- |
-| Ingestion          | Python, `google-cloud-bigquery`                           | ✅ built           |
-| Warehouse          | Google BigQuery                                           | ✅ built           |
-| Transformation     | dbt (`dbt-bigquery`)                                      | ✅ built           |
-| Modeling           | Galaxy schema, conformed dimensions, wide-to-long unpivot | ✅ built           |
-| BI / Visualization | Looker Studio                                             | ✅ built           |
-| AI assistant       | Vertex AI (Gemini)                                        | 🔜 roadmap (stub) |
+| Layer              | Technology                                                | Status  |
+| ------------------ | --------------------------------------------------------- | ------- |
+| Ingestion          | Python, `google-cloud-bigquery`                           | ✅ built |
+| Warehouse          | Google BigQuery                                           | ✅ built |
+| Transformation     | dbt (`dbt-bigquery`)                                      | ✅ built |
+| Modeling           | Galaxy schema, conformed dimensions, wide-to-long unpivot | ✅ built |
+| BI / Visualization | Looker Studio                                             | ✅ built |
+| AI assistant       | Vertex AI — Gemini (`gemini-2.5-flash`) via `google-genai`| ✅ built |
 
 > The dimensional modeling and ELT patterns here are warehouse-agnostic — the same schema design transfers directly to Snowflake, Redshift, or Databricks.
 
@@ -75,7 +96,7 @@ powerwatch/
 │   └── models/
 │       ├── staging/      # stg_power — parse Date+Time, SAFE_CAST, drop missing rows
 │       └── marts/        # dims + facts (galaxy schema) + rpt_* reporting views
-├── ai_assistant/         # Vertex AI NL-to-SQL — stub only, not yet wired (roadmap)
+├── ai_assistant/         # Vertex AI NL-to-SQL — nl_to_sql.py + prompts/
 ├── dashboards/           # Looker Studio dashboard notes
 └── docs/                 # architecture & schema diagrams, dashboard.png
 ```
@@ -84,9 +105,10 @@ powerwatch/
 
 ### Prerequisites
 
-- A Google Cloud project with the BigQuery API enabled (BigQuery **sandbox** — no billing — is enough)
+- A Google Cloud project with the BigQuery API enabled (BigQuery **sandbox** — no billing — is enough for the pipeline)
 - Python 3.10+
 - The `gcloud` CLI, authenticated for Application Default Credentials
+- *For the AI assistant only:* a **billing-enabled** project with the **Vertex AI API** (`aiplatform.googleapis.com`) on
 
 ### Setup
 
@@ -98,7 +120,7 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 # 2. Authenticate + configure
-gcloud auth application-default login          # dbt uses these credentials (oauth)
+gcloud auth application-default login          # dbt + assistant use these credentials
 cp .env.example .env                           # set GCP_PROJECT_ID, BQ_DATASET, GCP_REGION
 set -a; source .env; set +a                    # export so dbt's env_var() can read them
 
@@ -107,10 +129,11 @@ python ingestion/download_data.py              # fetches the UCI file if not alr
 python ingestion/load_to_bigquery.py
 
 # 4. Build the warehouse models
-cd dbt_powerwatch
-cp profiles.yml.example profiles.yml
-dbt deps
+cd dbt_powerwatch && dbt deps && cp profiles.yml.example profiles.yml
 dbt build                                      # models + tests (run by hand — no orchestration yet)
+
+# 5. (optional) ask the warehouse questions in English — needs billing + Vertex AI API
+python ../ai_assistant/nl_to_sql.py
 ```
 
 ## Key Learnings
@@ -118,14 +141,16 @@ dbt build                                      # models + tests (run by hand —
 - The data's **two grains** (whole-house vs per-zone) drove the design toward a galaxy schema with conformed `dim_date` / `dim_time` — a reminder that *grain* is the first and most important modeling decision.
 - The **wide-to-long unpivot** is what turns three sub-meter columns into a proper dimension + fact — the core move of dimensional modeling.
 - **Pre-joining a thin reporting-view layer** in the warehouse beats blending tables in the BI tool — cleaner, reusable across reports, and faster.
+- **Constraining an LLM to a known schema** (pasted into the prompt) makes NL→SQL reliable — the model queries real tables, not hallucinated ones.
 - dbt's tests turn a pile of SQL into a maintainable, trustworthy pipeline.
 
 ## Roadmap
 
 Not built yet — planned next:
 
-- **Vertex AI NL-to-SQL assistant** — ask questions in plain English; the model generates SQL against the known schema. A minimal stub exists in `ai_assistant/` but is not wired up.
-- Incremental dbt models for larger data volumes; scheduled orchestration (Cloud Composer / Airflow); row-level access controls.
+- Incremental dbt models for larger data volumes
+- Scheduled orchestration (Cloud Composer / Airflow)
+- Row-level access controls on the warehouse
 
 ---
 
