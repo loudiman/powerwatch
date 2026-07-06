@@ -16,9 +16,16 @@ from dotenv import load_dotenv
 from google import genai
 from google.cloud import bigquery
 
-load_dotenv()
+# Load .env from the repo root, regardless of the current working directory.
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-PROJECT = os.environ["GCP_PROJECT_ID"]
+PROJECT = os.environ.get("GCP_PROJECT_ID")
+if not PROJECT:
+    raise SystemExit(
+        "GCP_PROJECT_ID is not set. Create your .env from the template first:\n"
+        "    cp .env.example .env\n"
+        "(or export GCP_PROJECT_ID and GCP_REGION in your shell)."
+    )
 BQ_LOCATION = os.environ.get("GCP_REGION", "US")                    # where the data lives
 VERTEX_LOCATION = os.environ.get("VERTEX_LOCATION", "us-central1")  # where Gemini runs
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")

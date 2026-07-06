@@ -53,6 +53,8 @@ GROUP BY 1 ORDER BY SUM(f.energy_wh) DESC LIMIT 1
 
 It picks the right fact, joins the conformed dimension, and aggregates correctly — e.g. *"which hour has the highest average active power?"* returns `20` (8 PM), matching the dashboard's evening peak. Constraining the model to a **known schema** is what makes NL→SQL reliable.
 
+**Prefer a UI?** `streamlit run ai_assistant/app.py` launches a small web app — type a question and see the generated SQL and results in your browser.
+
 ## Tech Stack
 
 | Layer              | Technology                                                | Status  |
@@ -96,7 +98,7 @@ powerwatch/
 │   └── models/
 │       ├── staging/      # stg_power — parse Date+Time, SAFE_CAST, drop missing rows
 │       └── marts/        # dims + facts (galaxy schema) + rpt_* reporting views
-├── ai_assistant/         # Vertex AI NL-to-SQL — nl_to_sql.py + prompts/
+├── ai_assistant/         # Vertex AI NL-to-SQL — nl_to_sql.py (CLI) · app.py (web UI) · prompts/
 ├── dashboards/           # Looker Studio dashboard notes
 └── docs/                 # architecture & schema diagrams, dashboard.png
 ```
