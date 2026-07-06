@@ -53,7 +53,9 @@ GROUP BY 1 ORDER BY SUM(f.energy_wh) DESC LIMIT 1
 
 It picks the right fact, joins the conformed dimension, and aggregates correctly — e.g. *"which hour has the highest average active power?"* returns `20` (8 PM), matching the dashboard's evening peak. Constraining the model to a **known schema** is what makes NL→SQL reliable.
 
-**Prefer a UI?** `streamlit run ai_assistant/app.py` launches a small web app — type a question and see the generated SQL and results in your browser.
+**Prefer a UI?** `streamlit run ai_assistant/app.py` launches a small web app — type a question and see the generated SQL and results in your browser:
+
+![PowerWatch NL-to-SQL assistant UI](docs/assistant.png)
 
 ## Tech Stack
 
