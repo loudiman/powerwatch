@@ -4,9 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-**Greenfield.** As of this writing the repo contains only the source dataset and two design diagrams — no code, no tracked files (everything is untracked), empty `README.md`. There is no build/lint/test tooling yet; do not invent commands. When you scaffold the pipeline, update this file with the real commands.
+**Built and live.** ELT pipeline, dbt galaxy schema, Looker Studio dashboard and Vertex NL→SQL assistant are all shipped (PRs #1–#4). Since 2026-10 the warehouse is under data contracts and a weekly scheduled rebuild (see `docs/postmortem-2026-10.md`: the demo once expired silently for 62 days because the project runs on the BigQuery **sandbox**, where every table dies 60 days after it is built).
 
-PowerWatch is a planned **ELT pipeline** that turns the UCI household-power dataset into a BigQuery star schema, then serves it via a Looker Studio dashboard and a Vertex AI natural-language→SQL interface.
+Commands (from the repo root, with `.venv` active and `.env` exported via `set -a; source .env; set +a`):
+
+```bash
+python -m pytest -q                               # all contracts: raw-file (DuckDB), loader, golden answers (BigQuery)
+ALLOW_SANDBOX=1 python ingestion/load_to_bigquery.py   # reload; without ALLOW_SANDBOX=1 it refuses on the sandbox
+cd dbt_powerwatch && dbt build && dbt source freshness  # models + unit test + data tests, then freshness
+```
+
+Decisions live in `docs/adr/`. Vocabulary lives in `GLOSSARY.md`. Billing on the GCP project is off (sandbox): no DML, 60-day expiry, so incremental models are out (ADR-0002) until billing is on (ADR-0001).
 
 ## Source dataset
 

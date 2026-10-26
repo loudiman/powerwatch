@@ -41,12 +41,17 @@ def to_sql(question: str) -> str:
     return sql.removeprefix("```sql").removeprefix("```").removesuffix("```").strip()
 
 
+def run_sql(sql: str) -> list[dict]:
+    """Run SQL on the warehouse and return the rows as dicts."""
+    return [dict(row) for row in bigquery.Client(project=PROJECT).query(sql, location=BQ_LOCATION).result()]
+
+
 def main() -> None:
     question = input("Ask PowerWatch: ")
     sql = to_sql(question)
     print(f"\n--- generated SQL ---\n{sql}\n\n--- results ---")
-    for row in bigquery.Client(project=PROJECT).query(sql, location=BQ_LOCATION).result():
-        print(dict(row))
+    for row in run_sql(sql):
+        print(row)
 
 
 if __name__ == "__main__":

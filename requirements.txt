@@ -3,7 +3,12 @@ google-cloud-bigquery>=3.0
 python-dotenv>=1.0
 
 # Transform (pinned to the stable 1.9 line — unpinned pulls a dbt-core 2.0 alpha)
+dbt-core>=1.9,<1.10
 dbt-bigquery>=1.9,<1.10
+
+# Tests (tests/ — the data contracts; see docs/postmortem-2026-10.md)
+duckdb>=1.0
+pytest>=8
 
 # AI assistant (Tier 2 stretch — only needed for ai_assistant/)
 google-cloud-aiplatform>=1.40
