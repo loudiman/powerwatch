@@ -1,0 +1,68 @@
+# Weekly rebuild of the PowerWatch warehouse from a fresh clone, under every contract.
+#
+# Why: the project runs on the BigQuery sandbox, where every table expires 60 days after
+# it is built, and in 2026 the demo died silently for 62 days (docs/postmortem-2026-10.md).
+# This run is the clean machine, the canary, and the sandbox-clock reset in one. A failing
+# run is the alert.
+#
+# Auth is keyless (Workload Identity Federation). scripts/setup_wif.sh creates the pool,
+# the provider, the service account, and the three repository variables read below.
+name: rebuild-warehouse
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"      # Mondays 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write             # lets google-github-actions/auth mint a GCP token
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: asia-southeast1
+  BQ_DATASET: powerwatch
+  ALLOW_SANDBOX: "1"          # the loader refuses to run silently on the sandbox; this says we know (ADR-0001)
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Cache the UCI archive
+        uses: actions/cache@v4
+        with:
+          path: individual+household+electric+power+consumption.zip
+          key: uci-235-household-power-zip
+
+      - run: python ingestion/download_data.py
+
+      - name: Contracts that need no warehouse
+        run: python -m pytest tests/test_raw_profile.py tests/test_loader_stamp.py -q
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Load the raw table
+        run: python ingestion/load_to_bigquery.py
+
+      - name: Build and test the warehouse
+        working-directory: dbt_powerwatch
+        run: |
+          cp profiles.yml.example profiles.yml
+          dbt deps
+          dbt build
+          dbt source freshness
+
+      - name: The warehouse answers like the raw file
+        run: python -m pytest tests/test_golden_answers.py -q

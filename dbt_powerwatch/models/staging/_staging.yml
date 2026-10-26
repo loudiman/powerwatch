@@ -3,6 +3,13 @@ version: 2
 sources:
   - name: raw
     schema: "{{ env_var('BQ_DATASET', 'powerwatch') }}"
+    # Freshness contract (docs/postmortem-2026-10.md): the loader stamps every row with
+    # _loaded_at. The scheduled rebuild runs weekly, so 10 days stale means a missed run
+    # and 30 days means two misses and half-way to the sandbox's 60-day table expiry.
+    loaded_at_field: _loaded_at
+    freshness:
+      warn_after: {count: 10, period: day}
+      error_after: {count: 30, period: day}
     tables:
       - name: raw_power      # produced by ingestion/load_to_bigquery.py
 

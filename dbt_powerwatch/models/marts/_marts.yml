@@ -1,7 +1,28 @@
 version: 2
 
-# GSD: keep ~4 tests — unique + not_null on the keys, plus one relationships test.
-# They're one line each and a talking point. The rest are cut.
+# Tests: unique + not_null on the dimension keys, one relationships test, the grain of
+# both facts, and the physics of the readings (see also tests/*.sql and the unit test below).
+
+unit_tests:
+  - name: unpivot_melts_three_sub_meters_into_one_row_per_zone
+    description: >
+      Two complete readings in, six zone rows out. Each sub-meter's watt-hours land on its
+      own zone key and the conformed keys pass through unchanged. The inputs are the first
+      two readings of the UCI file (16/12/2006 17:24 and 17:25).
+    model: fct_zone_energy
+    given:
+      - input: ref('stg_power')
+        rows:
+          - {date_key: 20061216, time_key: 1724, sub_metering_1: 0, sub_metering_2: 1, sub_metering_3: 17}
+          - {date_key: 20061216, time_key: 1725, sub_metering_1: 0, sub_metering_2: 1, sub_metering_3: 16}
+    expect:
+      rows:
+        - {date_key: 20061216, time_key: 1724, zone_key: 1, energy_wh: 0}
+        - {date_key: 20061216, time_key: 1724, zone_key: 2, energy_wh: 1}
+        - {date_key: 20061216, time_key: 1724, zone_key: 3, energy_wh: 17}
+        - {date_key: 20061216, time_key: 1725, zone_key: 1, energy_wh: 0}
+        - {date_key: 20061216, time_key: 1725, zone_key: 2, energy_wh: 1}
+        - {date_key: 20061216, time_key: 1725, zone_key: 3, energy_wh: 16}
 
 models:
   - name: dim_date
@@ -18,9 +39,17 @@ models:
 
   - name: fct_household_load
     description: Whole-house load, one row per minute. The four Global_* measures.
+    tests:
+      - dbt_utils.unique_combination_of_columns:        # the grain: one reading per minute
+          combination_of_columns: [date_key, time_key]
+      - dbt_utils.expression_is_true:                   # P <= V*I, within one 0.2 A intensity step
+          expression: "active_power * 1000 / voltage - intensity <= 0.2"
 
   - name: fct_zone_energy
     description: Per-zone energy, one row per minute per zone (the unpivot).
+    tests:
+      - dbt_utils.unique_combination_of_columns:        # the grain: one row per minute per zone
+          combination_of_columns: [date_key, time_key, zone_key]
     columns:
       - name: zone_key
         tests:
